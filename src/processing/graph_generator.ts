@@ -55,7 +55,7 @@ class GraphGenerator {
 
     //get first element where namespace is defined.
     const namespaceElement = dataElements.find((el) => el.namespace !== undefined);
-    if (namespaceElement) {
+    if (namespaceElement?.namespace) {
       const namespace = namespaceElement.namespace;
       node.data.namespace = namespace;
       node.data.layer = namespace.length;
@@ -234,10 +234,13 @@ class GraphGenerator {
   _resolveEdgeMap(edges: IntGraphEdge[]) {
     var edgeMap: Map<string, IntGraphEdge[]> = new Map();
     edges.forEach((edge) => {
-      if (edgeMap.get(edge.source + '-' + edge.target)) {
-        edgeMap.get(edge.source + '-' + edge.target).push(edge);
+      const key = edge.source + '-' + edge.target;
+      const existingEdges = edgeMap.get(key);
+
+      if (existingEdges) {
+        existingEdges.push(edge);
       } else {
-        edgeMap.set(edge.source + '-' + edge.target, [edge]);
+        edgeMap.set(key, [edge]);
       }
     });
     return edgeMap;
@@ -256,7 +259,13 @@ class GraphGenerator {
       data: {
         source: '',
         target: '',
-        metrics: {},
+        metrics: {
+          error_rate: 0,
+          rate: 0,
+          response_time: 0,
+          success_rate: 0,
+          threshold: 0,
+        },
       },
     };
     edges.forEach((edge) => {
@@ -268,31 +277,31 @@ class GraphGenerator {
         mergedEdge.target = edge.target;
         mergedEdge.data.target = edge.data.target;
       }
-      if (edge.data.metrics.error_rate) {
+      if (edge.data?.metrics?.error_rate) {
         mergedEdge.data.metrics.error_rate = mergedEdge.data.metrics.error_rate
           ? mergedEdge.data.metrics.error_rate + edge.data.metrics.error_rate
           : (mergedEdge.data.metrics.error_rate = edge.data.metrics.error_rate);
         errorRateCounter++;
       }
-      if (edge.data.metrics.rate) {
+      if (edge.data?.metrics?.rate) {
         mergedEdge.data.metrics.rate = mergedEdge.data.metrics.rate
           ? mergedEdge.data.metrics.rate + edge.data.metrics.rate
           : (mergedEdge.data.metrics.rate = edge.data.metrics.rate);
         rateCounter++;
       }
-      if (edge.data.metrics.response_time) {
+      if (edge.data?.metrics?.response_time) {
         mergedEdge.data.metrics.response_time = mergedEdge.data.metrics.response_time
           ? mergedEdge.data.metrics.response_time + edge.data.metrics.response_time
           : (mergedEdge.data.metrics.response_time = edge.data.metrics.response_time);
         responseTimeCounter++;
       }
-      if (edge.data.metrics.success_rate) {
+      if (edge.data?.metrics?.success_rate) {
         mergedEdge.data.metrics.success_rate = mergedEdge.data.metrics.success_rate
           ? mergedEdge.data.metrics.success_rate + edge.data.metrics.success_rate
           : (mergedEdge.data.metrics.success_rate = edge.data.metrics.success_rate);
         successRateCounter++;
       }
-      if (edge.data.metrics.threshold) {
+      if (edge.data?.metrics?.threshold) {
         mergedEdge.data.metrics.threshold = mergedEdge.data.metrics.threshold
           ? mergedEdge.data.metrics.threshold + edge.data.metrics.threshold
           : (mergedEdge.data.metrics.threshold = edge.data.metrics.threshold);
@@ -300,19 +309,19 @@ class GraphGenerator {
       }
     });
 
-    if (mergedEdge.data.metrics.error_rate) {
+    if (mergedEdge?.data.metrics?.error_rate) {
       mergedEdge.data.metrics.error_rate = mergedEdge.data.metrics.error_rate / errorRateCounter;
     }
-    if (mergedEdge.data.metrics.rate) {
+    if (mergedEdge?.data.metrics?.rate) {
       mergedEdge.data.metrics.rate = mergedEdge.data.metrics.rate / rateCounter;
     }
-    if (mergedEdge.data.metrics.response_time) {
+    if (mergedEdge?.data.metrics?.response_time) {
       mergedEdge.data.metrics.response_time = mergedEdge.data.metrics.response_time / responseTimeCounter;
     }
-    if (mergedEdge.data.metrics.success_rate) {
+    if (mergedEdge?.data.metrics?.success_rate) {
       mergedEdge.data.metrics.success_rate = mergedEdge.data.metrics.success_rate / successRateCounter;
     }
-    if (mergedEdge.data.metrics.threshold) {
+    if (mergedEdge?.data.metrics?.threshold) {
       mergedEdge.data.metrics.threshold = mergedEdge.data.metrics.threshold / thresholdCounter;
     }
 
