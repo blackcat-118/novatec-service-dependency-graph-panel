@@ -7,6 +7,7 @@ export const DefaultSettings: PanelSettings = {
     aggregationType: 'service',
     sourceColumn: 'origin_service',
     targetColumn: 'target_service',
+    interfaceColumn: 'interface',
     namespaceColumn: 'namespace',
     namespaceDelimiter: '.',
 

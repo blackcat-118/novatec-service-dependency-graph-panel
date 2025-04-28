@@ -15,6 +15,7 @@ class PreProcessor {
       aggregationType,
       sourceColumn,
       targetColumn,
+      interfaceColumn,
       extOrigin: externalSource,
       extTarget: externalTarget,
       namespaceDelimiter,
@@ -25,6 +26,46 @@ class PreProcessor {
       var target = _.has(dataObject, targetColumn) && dataObject[targetColumn] !== '';
       const extSource = _.has(dataObject, externalSource) && dataObject[externalSource] !== '';
       const extTarget = _.has(dataObject, externalTarget) && dataObject[externalTarget] !== '';
+
+      // preprocessing the source and target columns
+      // to remove the namespace string from the source and target columns
+      // and replace it with the namespaceDelimiter
+
+      if (dataObject[aggregationType] !== '') {
+        const aggValue = dataObject[aggregationType];
+        const aggResovled = aggValue.split('-');
+        if (aggResovled.length >= 3) {
+          dataObject[aggregationType] = aggResovled[aggResovled.length-3];
+        }
+      }
+      if (source) {
+        const sourceValue = dataObject[sourceColumn];
+        const sourceResolved = sourceValue.split('-');
+        if (sourceResolved.length >= 3) {
+          dataObject[sourceColumn] = sourceResolved[sourceResolved.length-3];
+        }
+      }
+      if (target) {
+        const targetValue = dataObject[targetColumn];
+        const targetResolved = targetValue.split('-');
+        if (targetResolved.length >= 3) {
+          dataObject[targetColumn] = targetResolved[targetResolved.length-3];
+        }
+      }
+      if (extSource) {
+        const sourceValue = dataObject[externalSource];
+        const sourceResolved = sourceValue.split('-');
+        if (sourceResolved.length >= 3) {
+          dataObject[externalSource] = sourceResolved[sourceResolved.length-3];
+        }
+      }
+      if (extTarget) {
+        const targetValue = dataObject[externalTarget];
+        const targetResolved = targetValue.split('-');
+        if (targetResolved.length >= 3) {
+          dataObject[externalTarget] = targetResolved[targetResolved.length-3];
+        }
+      }
 
       let trueCount = [source, target, extSource, extTarget].filter((e) => e).length;
 
@@ -38,6 +79,9 @@ class PreProcessor {
           return undefined;
         }
       }
+
+      // Don't use extSource and extTarget for 5G Digital Twin
+      // because they are not used in the data mapping
 
       const result: GraphDataElement = {
         target: '',
@@ -77,6 +121,48 @@ class PreProcessor {
           result.source = dataObject[aggregationType];
           result.target = dataObject[externalTarget];
           result.type = GraphDataType.EXTERNAL_OUT;
+        }
+        
+        const sbiExclude: string[] = ['ue', 'upf', 'upf1', 'gnb', 'dbpython', 'mongodb-0'];
+        // Only consider container network receive 
+        result.type = GraphDataType.INTERNAL;
+        if (dataObject[interfaceColumn] !== "") {
+          if (dataObject[interfaceColumn] === "n2") {
+            if (result.source === "amf") {
+              result.source = "gnb";
+              // result.type = GraphDataType.EXTERNAL_IN
+            } else if (result.source === "gnb") {
+              result.target = "amf";
+              // result.type = GraphDataType.EXTERNAL_OUT
+            }
+          } else if (dataObject[interfaceColumn] === "n3") {
+            if (result.source === "upf" || result.source === "upf1") {
+              result.target = "gnb";
+            }  //else if (result.source === "gnb") {
+            //   result.target = "upf";
+            // }
+          } else if (dataObject[interfaceColumn] === "n4") {
+            if (result.target === "upf" || result.target === "upf1") {
+              result.source = "smf";
+            }
+          } else if (dataObject[interfaceColumn] === "n6") {
+            result.target = "DN"
+            result.type = GraphDataType.EXTERNAL_OUT
+          } else if (
+            typeof dataObject[interfaceColumn] === 'string' &&
+            dataObject[interfaceColumn].includes('uesimtun')
+          ) {
+            result.target = "gnb"
+            // result.type = GraphDataType.EXTERNAL_OUT
+          } else {
+            if (result.source && !sbiExclude.includes(result.source)) {
+              result.target = "SBI"
+              // result.type = GraphDataType.EXTERNAL_OUT
+            } else if (result.target && !sbiExclude.includes(result.target)) {
+              result.source = "SBI"
+              // result.type = GraphDataType.EXTERNAL_OUT
+            }
+          }
         }
       }
       return result;
@@ -157,6 +243,7 @@ class PreProcessor {
       aggregationType,
       sourceColumn,
       targetColumn,
+      interfaceColumn,
       namespaceColumn,
       extOrigin,
       extTarget,
@@ -180,6 +267,7 @@ class PreProcessor {
 
       const sourceColumnField = _.find(fields, ['name', sourceColumn]);
       const targetColumnField = _.find(fields, ['name', targetColumn]);
+      const interfaceColumnField = _.find(fields, ['name', interfaceColumn]);
       const namespaceColumnField = _.find(fields, ['name', namespaceColumn]);
 
       const errorRateColumnField = _.find(fields, ['name', errorRateColumn]);
@@ -197,6 +285,7 @@ class PreProcessor {
         row[aggregationType] = aggregationSuffixField?.values.get(i);
         row[sourceColumn] = sourceColumnField?.values.get(i);
         row[targetColumn] = targetColumnField?.values.get(i);
+        row[interfaceColumn] = interfaceColumnField?.values.get(i);
         row['namespace'] = namespaceColumnField?.values.get(i);
         row['error_rate_in'] = errorRateColumnField?.values.get(i);
         row['error_rate_out'] = errorRateOutgoingColumnField?.values.get(i);

@@ -19,6 +19,7 @@ export interface DataMapping {
   aggregationType: string;
   sourceColumn: string;
   targetColumn: string;
+  interfaceColumn: string;
   namespaceColumn: string;
   namespaceDelimiter: string;
 

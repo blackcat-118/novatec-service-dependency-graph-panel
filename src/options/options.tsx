@@ -38,6 +38,15 @@ export const optionsBuilder = (builder: PanelOptionsEditorBuilder<PanelSettings>
       })
 
       .addCustomEditor({
+        path: 'dataMapping.interfaceColumn',
+        id: 'interfaceComponentPrefix',
+        name: 'Interface Component Column',
+        category: ['Connection Mapping'],
+        editor: TypeaheadTextField,
+        defaultValue: DefaultSettings.dataMapping.interfaceColumn,
+      })
+
+      .addCustomEditor({
         path: 'dataMapping.namespaceColumn',
         id: 'namespaceColumn',
         name: 'Namespace Column',

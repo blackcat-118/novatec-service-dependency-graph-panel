@@ -37,6 +37,7 @@ export class DummyDataSwitch extends React.PureComponent<Props, State> {
       aggregationType: 'service',
       sourceColumn: 'origin_service',
       targetColumn: 'target_service',
+      interfaceColumn: 'interface',
       responseTimeColumn: 'in_timesum',
       requestRateColumn: 'in_count',
       errorRateColumn: 'error_in',

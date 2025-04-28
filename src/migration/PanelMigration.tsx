@@ -52,6 +52,7 @@ export const PanelMigrationHandler = (panel: PanelModel<Partial<PanelSettings>> 
         aggregationType: '$aggregationType',
         sourceColumn: settings.dataMapping.sourceComponentPrefix + '$aggregationType',
         targetColumn: settings.dataMapping.targetComponentPrefix + '$aggregationType',
+        interfaceColumn: settings.dataMapping.interface,
 
         responseTimeColumn: settings.dataMapping.responseTimeColumn,
         requestRateColumn: settings.dataMapping.requestRateColumn,
