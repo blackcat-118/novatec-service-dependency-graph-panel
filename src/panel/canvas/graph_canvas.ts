@@ -278,6 +278,88 @@ export default class CanvasDrawer {
     this._drawEdges(ctx, transparentEdges, now);
     ctx.globalAlpha = 1;
     this._drawEdges(ctx, opaqueEdges, now);
+
+    // Draw lines connecting nodes to target "SBI"
+    this._drawLinesToTarget(ctx, opaqueEdges, now)
+
+    ctx.restore();
+  }
+
+  _drawLinesToTarget(ctx: CanvasRenderingContext2D, edges: cytoscape.EdgeSingular[], now: number) {
+    
+    const cy = this.cytoscape;
+    const { showConnectionStats } = this.controller.getSettings(true);
+    const sbiLineY = 200; // Y-coordinate of the SBI line (adjust as needed)
+  
+    ctx.save();
+    ctx.strokeStyle = '#FFFFFF'; // Red color for the connecting lines
+    ctx.lineWidth = 2;
+
+    const nfNum = 10;
+    const sbiLineX = 200; // X-coordinate of the SBI line (adjust as needed)
+    const sbiLineXLen = 50*nfNum;
+  
+    // Draw the horizontal SBI line
+    ctx.beginPath();
+    ctx.moveTo(sbiLineX, sbiLineY); // Start point of the SBI line (adjust X-coordinate as needed)
+    ctx.lineTo(sbiLineX + sbiLineXLen, sbiLineY); // End point of the SBI line (adjust X-coordinate as needed)
+    ctx.stroke();
+  
+    // Add the "SBI" label near the horizontal line
+    ctx.font = '8px Arial'; // Set font size and style
+    ctx.fillStyle = '#FFFFFF'; // White color for the label
+    ctx.fillText('Service-Based Interface (SBI)', sbiLineX+sbiLineXLen+10, sbiLineY + 5); // Position the label near the line
+
+    // Draw lines connecting source nodes to the SBI line and add labels
+    for (const edge of edges) {
+      const sourcePoint = edge.sourceEndpoint();
+      const target = edge.target();
+      const targetId = target.id().toLowerCase();
+
+      if (targetId === 'sbi') {
+
+        const targetPoint = {
+          x: sourcePoint.x,   // Align the connection vertically to the SBI 
+          y: sbiLineY,
+        }
+        this._drawEdgeLine(ctx, edge, sourcePoint, targetPoint);
+        this._drawEdgeParticles(ctx, edge, sourcePoint, targetPoint, now);
+
+        if (showConnectionStats && cy.zoom() > 1) {
+          // Add edge label (e.g., "X Req.")
+          const metrics = edge.data('metrics');
+          const requestCount = parseInt(_.defaultTo(metrics?.rate, 0).toString(), 10); // Default to 0 if no data and ensure it's an integer
+          const label = `${requestCount} Req.`;
+      
+          ctx.font = '6px Arial'; // Set font size and style
+          ctx.fillStyle = '#FFFFFF'; // White color for the label
+          ctx.fillText(label, (sourcePoint.x + targetPoint.x) / 2, (sourcePoint.y + targetPoint.y) / 2 - 5); // Position the label
+        }
+      }
+    
+  
+  
+      // Skip the "SBI" node itself
+      // if (targetId === 'sbi') {
+      //   const targetX = sourcePoint.x; // Align the connection vertically to the SBI line
+  
+      //   // Draw the red edge
+      //   ctx.beginPath();
+      //   ctx.moveTo(sourcePoint.x, sourcePoint.y);
+      //   ctx.lineTo(targetX, sbiLineY);
+      //   ctx.stroke();
+  
+      //   // Add edge label (e.g., "X Req.")
+      //   const metrics = edge.data('metrics');
+      //   const requestCount = parseInt(_.defaultTo(metrics?.rate, 0).toString(), 10); // Default to 0 if no data and ensure it's an integer
+      //   const label = `${requestCount} Req.`;
+  
+      //   ctx.font = '10px Arial'; // Set font size and style
+      //   ctx.fillStyle = '#FFFFFF'; // White color for the label
+      //   ctx.fillText(label, (sourcePoint.x + targetX) / 2, (sourcePoint.y + sbiLineY) / 2 - 5); // Position the label
+      // }
+    }
+  
     ctx.restore();
   }
 
@@ -287,13 +369,22 @@ export default class CanvasDrawer {
     for (const edge of edges) {
       const sourcePoint = edge.sourceEndpoint();
       const targetPoint = edge.targetEndpoint();
+
+      // Ignore edges where the source or target is the "SBI" node
+      if (edge.source().id().toLowerCase() === 'sbi' || edge.target().id().toLowerCase() === 'sbi') {
+        continue;
+      }
+
       this._drawEdgeLine(ctx, edge, sourcePoint, targetPoint);
       this._drawEdgeParticles(ctx, edge, sourcePoint, targetPoint, now);
     }
 
     const { showConnectionStats } = this.controller.getSettings(true);
     if (showConnectionStats && cy.zoom() > 1) {
-      for (const edge of edges) {
+      for (const edge of edges) {// Ignore edges where the source or target is the "SBI" node
+        if (edge.source().id().toLowerCase() === 'sbi' || edge.target().id().toLowerCase() === 'sbi') {
+          continue;
+        }
         this._drawEdgeLabel(ctx, edge);
       }
     }
@@ -358,7 +449,8 @@ export default class CanvasDrawer {
     }
     if (requestCount >= 0) {
       const decimals = requestCount >= 1000 ? 1 : 0;
-      statistics.push(humanFormat(parseFloat(requestCount.toString()), { decimals }) + ' Req.');
+      // statistics.push(humanFormat(parseFloat(requestCount.toString()), { decimals }) + ' Req.');
+      statistics.push(humanFormat(parseFloat(requestCount.toString()), { decimals }));
     }
     if (errorCount >= 0) {
       const decimals = errorCount >= 1000 ? 1 : 0;
@@ -506,8 +598,11 @@ export default class CanvasDrawer {
     const that = this;
     const cy = this.cytoscape;
 
+    // Get all nodes and filter out the "SBI" node
+    const nodes = cy.nodes().toArray().filter((node) => node.id().toLowerCase() !== 'sbi');
+
     // Draw model elements
-    const nodes = cy.nodes().toArray();
+    // const nodes = cy.nodes().toArray();
     for (let i = 0; i < nodes.length; i++) {
       const node = nodes[i];
       if (that.selectionNeighborhood.empty() || that.selectionNeighborhood.has(node)) {
@@ -580,7 +675,7 @@ export default class CanvasDrawer {
 
     // draw statistics
     if (cy.zoom() > 1) {
-      this._drawNodeStatistics(ctx, node);
+      // this._drawNodeStatistics(ctx, node);
     }
   }
 
@@ -726,7 +821,7 @@ export default class CanvasDrawer {
       }
     }
 
-    ctx.font = '6px Arial';
+    ctx.font = '10px Arial';
 
     const labelWidth = ctx.measureText(label).width;
     const xPos = pos.x - labelWidth / 2;
@@ -750,7 +845,7 @@ export default class CanvasDrawer {
       ctx.fillStyle = '#FF7383';
     }
 
-    ctx.fillRect(xPos - labelPadding, yPos - 6 - labelPadding, labelWidth + 2 * labelPadding, 6 + 2 * labelPadding);
+    ctx.fillRect(xPos - labelPadding, yPos - 8 - labelPadding, labelWidth + 3 * labelPadding, 8 + 2 * labelPadding);
 
     ctx.fillStyle = this.colors.background;
     ctx.fillText(label, xPos, yPos);
