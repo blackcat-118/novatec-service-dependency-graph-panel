@@ -1,5 +1,5 @@
 const options = {
-  name: 'cola',
+  name: 'preset',
   animate: true, // whether to show the layout as it's running
   refresh: 1, // number of ticks per frame; higher is faster but more jerky
   maxSimulationTime: 3000, // max length in ms to run the layout

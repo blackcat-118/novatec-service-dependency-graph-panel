@@ -36,7 +36,26 @@ interface PanelState {
 }
 
 cyCanvas(cytoscape);
-cytoscape.use(cola);
+// cytoscape.use(preset); // no preset layout
+
+const defaultPositions: Record<string, { x: number, y: number }> = {
+  nssf: { x: 100, y: 100 },
+  nrf: { x: 200, y: 100 },
+  udr: { x: 300, y: 100 },
+  pcf: { x: 400, y: 100 },
+  udm: { x: 500, y: 100 },
+  ausf: { x: 600, y: 100 },
+  webui: { x: 700, y: 100 },
+  chf: { x: 100, y: 300 },
+  amf: { x: 200, y: 300 },
+  smf: { x: 350, y: 300 },
+  upf: { x: 450, y: 300 },
+  upf1: { x: 450, y: 400 },
+  gnb: { x: 275, y: 400 },
+  ue: { x: 0, y: 400 },
+  DN: { x: 550, y: 350 },
+  // Add more nodes and positions as needed
+};
 
 export class ServiceDependencyGraph extends PureComponent<PanelState, PanelState> {
   ref: any;
@@ -77,12 +96,24 @@ export class ServiceDependencyGraph extends PureComponent<PanelState, PanelState
   }
 
   componentDidMount() {
+    // console.log('ServiceDependencyGraph mounted data', this.props.data);
+
+    const withPositions = {
+      nodes: this.props.data.nodes.map((node: any) => {
+        const pos = defaultPositions[node.data.id];
+        return pos
+          ? { ...node, position: pos }
+          : node; // keep node as is if no default position
+      }),
+      edges: this.props.data.edges,
+    };
+
     const cy: any = cytoscape({
       container: this.ref,
       zoom: this.state.zoom,
-      elements: this.props.data,
+      elements: withPositions,
       layout: {
-        name: 'cola',
+        name: 'preset',
       },
       style: [
         {
@@ -112,6 +143,8 @@ export class ServiceDependencyGraph extends PureComponent<PanelState, PanelState
       ],
       wheelSensitivity: 0.125,
     });
+
+    cy.layout({ name: 'preset' }).run();
 
     var graphCanvas = new CanvasDrawer(
       this,
