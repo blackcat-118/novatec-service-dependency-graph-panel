@@ -1,5 +1,6 @@
 import { PanelModel } from '@grafana/data';
 import { DefaultSettings } from 'options/DefaultSettings';
+import { cpuUsage } from 'process';
 import { PanelSettings } from 'types';
 
 /**
@@ -54,6 +55,7 @@ export const PanelMigrationHandler = (panel: PanelModel<Partial<PanelSettings>> 
         targetColumn: settings.dataMapping.targetComponentPrefix + '$aggregationType',
         interfaceColumn: settings.dataMapping.interface,
 
+        cpuUsageColumn: settings.dataMapping.cpuUsageColumn,
         responseTimeColumn: settings.dataMapping.responseTimeColumn,
         requestRateColumn: settings.dataMapping.requestRateColumn,
         errorRateColumn: settings.dataMapping.errorRateColumn,

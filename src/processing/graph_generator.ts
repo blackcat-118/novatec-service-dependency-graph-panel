@@ -29,7 +29,8 @@ class GraphGenerator {
 
     const sumMetrics = this.controller.getSettings(true).sumTimings;
 
-    var nodeName = dataElements[0].target;
+    // use source as node name because the data elements are grouped by source
+    var nodeName = dataElements[0].source;
     if (nodeName === '' || nodeName === undefined || nodeName === null) {
       nodeName = 'undefined';
     }
@@ -93,6 +94,15 @@ class GraphGenerator {
     }
 
     // metrics which are same for internal and external nodes
+    metrics.bandwidth = _(dataElements)
+      .map((element) => element.data.bandwidth)
+      .filter()
+      .mean();
+    metrics.cpu_usage = _(dataElements)
+      .filter((element) => element.data.pod === nodeName) // Only include elements where 'pod' matches 'nodeName'
+      .map((element) => element.data.cpu_usage)
+      .filter(isPresent)
+      .mean();
     metrics.threshold = _(dataElements)
       .map((element) => element.data.threshold)
       .filter()
@@ -157,15 +167,17 @@ class GraphGenerator {
 
   _createNodes(data: GraphDataElement[]): IntGraphNode[] {
     var tree = new NodeTree();
+    
     const filteredData = _.filter(
       data,
       (dataElement) =>
         dataElement.source !== dataElement.target ||
-        (_.has(dataElement, 'target') && !_.has(dataElement, 'target')) ||
-        (!_.has(dataElement, 'target') && _.has(dataElement, 'target'))
+        (_.has(dataElement, 'source') && !_.has(dataElement, 'source')) ||
+        (!_.has(dataElement, 'source') && _.has(dataElement, 'source'))
     );
 
-    const targetGroups = _.groupBy(filteredData, 'target');
+    // group by source because the metrics are associated with source
+    const targetGroups = _.groupBy(filteredData, 'source');
 
     const explicitlyNamedNodes = _.map(targetGroups, (group) => this._createNode(group, tree)).filter(isPresent);
 
@@ -226,6 +238,9 @@ class GraphGenerator {
       } else {
         metrics.response_time = response_time_out;
       }
+    }
+    if (!_.isUndefined(dataElement.data.bandwidth)) {
+      metrics.bandwidth = dataElement.data.bandwidth;
     }
 
     return edge;
@@ -400,8 +415,9 @@ class GraphGenerator {
 
   generateGraph(graphData: GraphDataElement[]): IntGraph {
     const nodes = this._createNodes(graphData);
-
+    console.log('nodes', nodes);
     const edges = this._createEdges(graphData);
+    console.log('edges', edges);
     const graph: IntGraph = {
       nodes,
       edges,

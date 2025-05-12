@@ -11,6 +11,7 @@ export const DefaultSettings: PanelSettings = {
     namespaceColumn: 'namespace',
     namespaceDelimiter: '.',
 
+    cpuUsageColumn: 'cpu-usage',
     responseTimeColumn: 'response-time',
     requestRateColumn: 'request-rate',
     errorRateColumn: 'error-rate',

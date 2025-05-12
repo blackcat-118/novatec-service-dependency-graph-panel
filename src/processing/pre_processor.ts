@@ -129,7 +129,7 @@ class PreProcessor {
         if (dataObject[interfaceColumn] !== "") {
           if (dataObject[interfaceColumn] === "n2") {
             if (result.source === "amf") {
-              result.source = "gnb";
+              result.target = "gnb";
               // result.type = GraphDataType.EXTERNAL_IN
             } else if (result.source === "gnb") {
               result.target = "amf";
@@ -250,12 +250,15 @@ class PreProcessor {
       type,
       errorRateColumn,
       errorRateOutgoingColumn,
+      cpuUsageColumn,
       responseTimeColumn,
       responseTimeOutgoingColumn,
       requestRateColumn,
       requestRateOutgoingColumn,
       baselineRtUpper,
     } = this.controller.getSettings(true).dataMapping;
+
+
 
     for (const inputData of inputDataSets) {
       const { fields } = inputData;
@@ -272,9 +275,11 @@ class PreProcessor {
 
       const errorRateColumnField = _.find(fields, ['name', errorRateColumn]);
       const errorRateOutgoingColumnField = _.find(fields, ['name', errorRateOutgoingColumn]);
+      const cpuUsageColumnField = _.find(fields, ['name', cpuUsageColumn]);
       const responseTimeColumnField = _.find(fields, ['name', responseTimeColumn]);
       const responseTimeOutgoingColumnField = _.find(fields, ['name', responseTimeOutgoingColumn]);
       const requestRateColumnField = _.find(fields, ['name', requestRateColumn]);
+      const bandwidthColumnField = _.find(fields, ['name', 'Value #C']);
       const requestRateOutgoingColumnField = _.find(fields, ['name', requestRateOutgoingColumn]);
       const responseTimeBaselineField = _.find(fields, ['name', baselineRtUpper]);
 
@@ -289,9 +294,11 @@ class PreProcessor {
         row['namespace'] = namespaceColumnField?.values.get(i);
         row['error_rate_in'] = errorRateColumnField?.values.get(i);
         row['error_rate_out'] = errorRateOutgoingColumnField?.values.get(i);
+        row['cpu_usage'] = cpuUsageColumnField?.values.get(i);
         row['response_time_in'] = responseTimeColumnField?.values.get(i);
         row['response_time_out'] = responseTimeOutgoingColumnField?.values.get(i);
         row['rate_in'] = requestRateColumnField?.values.get(i);
+        row['bandwidth'] = bandwidthColumnField?.values.get(i);
         row['rate_out'] = requestRateOutgoingColumnField?.values.get(i);
         row['threshold'] = responseTimeBaselineField?.values.get(i);
         row['type'] = typeField?.values.get(i);

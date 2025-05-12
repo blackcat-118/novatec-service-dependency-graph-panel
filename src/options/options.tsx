@@ -93,6 +93,15 @@ export const optionsBuilder = (builder: PanelOptionsEditorBuilder<PanelSettings>
 
       //Data Mapping
       .addCustomEditor({
+        id: 'cpuUsage',
+        path: 'dataMapping.cpuUsageColumn',
+        name: 'CPU Usage Column',
+        editor: TypeaheadTextField,
+        category: ['Data Mapping'],
+        defaultValue: DefaultSettings.dataMapping.cpuUsageColumn,
+      })
+
+      .addCustomEditor({
         id: 'responseTime',
         path: 'dataMapping.responseTimeColumn',
         name: 'Response Time Column',

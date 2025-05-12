@@ -23,6 +23,7 @@ export interface DataMapping {
   namespaceColumn: string;
   namespaceDelimiter: string;
 
+  cpuUsageColumn: string;
   responseTimeColumn: string;
   requestRateColumn: string;
   errorRateColumn: string;
@@ -84,8 +85,11 @@ export interface GraphDataElement {
 }
 
 export interface DataElement {
+  pod?: string;
   rate_in?: number;
   rate_out?: number;
+  cpu_usage?: number;
+  bandwidth?: number;
   response_time_in?: number;
   response_time_out?: number;
   error_rate_in?: number;
@@ -124,6 +128,8 @@ export interface IntGraphNodeData {
 export interface IntGraphMetrics {
   rate?: number;
   error_rate?: number;
+  cpu_usage?: number;
+  bandwidth?: number;
   response_time?: number;
   success_rate?: number;
   threshold?: number;

@@ -296,8 +296,8 @@ export default class CanvasDrawer {
     ctx.lineWidth = 2;
 
     const nfNum = 10;
-    const sbiLineX = 200; // X-coordinate of the SBI line (adjust as needed)
-    const sbiLineXLen = 50*nfNum;
+    const sbiLineX = 50; // X-coordinate of the SBI line (adjust as needed)
+    const sbiLineXLen = 100*7;
   
     // Draw the horizontal SBI line
     ctx.beginPath();
@@ -369,6 +369,8 @@ export default class CanvasDrawer {
     for (const edge of edges) {
       const sourcePoint = edge.sourceEndpoint();
       const targetPoint = edge.targetEndpoint();
+      // console.log('draw edge : ', sourcePoint, targetPoint);
+
 
       // Ignore edges where the source or target is the "SBI" node
       if (edge.source().id().toLowerCase() === 'sbi' || edge.target().id().toLowerCase() === 'sbi') {
@@ -437,24 +439,30 @@ export default class CanvasDrawer {
 
     let statistics: string[] = [];
     const metrics: IntGraphMetrics = edge.data('metrics');
-    const duration = _.defaultTo(metrics.response_time, -1);
-    const requestCount = _.defaultTo(metrics.rate, -1);
-    const errorCount = _.defaultTo(metrics.error_rate, -1);
+    // const duration = _.defaultTo(metrics.response_time, -1);
+    // const requestCount = _.defaultTo(metrics.rate, -1);
+    // const errorCount = _.defaultTo(metrics.error_rate, -1);
+    const bandwidth = _.defaultTo(metrics.bandwidth, 0);
 
-    const timeScale = new humanFormat.Scale(this._getTimeScale(timeFormat));
+    // const timeScale = new humanFormat.Scale(this._getTimeScale(timeFormat));
 
-    if (duration >= 0) {
-      const decimals = duration >= 1000 ? 1 : 0;
-      statistics.push(humanFormat(duration, { scale: timeScale, decimals }));
-    }
-    if (requestCount >= 0) {
-      const decimals = requestCount >= 1000 ? 1 : 0;
-      // statistics.push(humanFormat(parseFloat(requestCount.toString()), { decimals }) + ' Req.');
-      statistics.push(humanFormat(parseFloat(requestCount.toString()), { decimals }));
-    }
-    if (errorCount >= 0) {
-      const decimals = errorCount >= 1000 ? 1 : 0;
-      statistics.push(humanFormat(errorCount, { decimals }) + ' Err.');
+    // if (duration >= 0) {
+    //   const decimals = duration >= 1000 ? 1 : 0;
+    //   statistics.push(humanFormat(duration, { scale: timeScale, decimals }));
+    // }
+    // if (requestCount >= 0) {
+    //   const decimals = requestCount >= 1000 ? 1 : 0;
+    //   statistics.push(humanFormat(parseFloat(requestCount.toString()), { decimals }) + ' Req.');
+    //   // statistics.push(humanFormat(parseFloat(requestCount.toString()), { decimals }));
+    // }
+    // if (errorCount >= 0) {
+    //   const decimals = errorCount >= 1000 ? 1 : 0;
+    //   statistics.push(humanFormat(errorCount, { decimals }) + ' Err.');
+    // }
+    if (bandwidth > 0) {
+      const decimals = bandwidth >= 0 ? 1 : 0;
+      statistics.push(humanFormat(bandwidth, { decimals }) + 'B/s');
+      // statistics.push(humanFormat(bandwidth, { decimals, unit: 'B' }) + '/s');
     }
 
     if (statistics.length > 0) {
@@ -600,6 +608,7 @@ export default class CanvasDrawer {
 
     // Get all nodes and filter out the "SBI" node
     const nodes = cy.nodes().toArray().filter((node) => node.id().toLowerCase() !== 'sbi');
+    // console.log('draw nodes', nodes);
 
     // Draw model elements
     // const nodes = cy.nodes().toArray();
@@ -636,6 +645,7 @@ export default class CanvasDrawer {
     const metrics: IntGraphMetrics = node.data('metrics');
 
     if (type === EnGraphNodeType.INTERNAL) {
+      const cpuUsage = _.defaultTo(metrics.cpu_usage, 0);
       const requestCount = _.defaultTo(metrics.rate, -1);
       const errorCount = _.defaultTo(metrics.error_rate, 0);
       const responseTime = _.defaultTo(metrics.response_time, -1);
@@ -657,6 +667,20 @@ export default class CanvasDrawer {
         healthyPct = 1.0 - errorPct;
         unknownPct = 0;
       }
+      healthyPct = 0;
+      errorPct = 0;
+      unknownPct = 0;
+      if (cpuUsage > 1) {
+        var exceedPct = cpuUsage - parseInt(cpuUsage.toString(), 10);
+        healthyPct = exceedPct / cpuUsage;
+        errorPct = 1.0 - healthyPct;
+      } else if (cpuUsage < 0.1) {
+        healthyPct = 0.1;
+      }
+      else {
+        healthyPct = cpuUsage;
+      }
+      unknownPct = 1.0 - healthyPct - errorPct;
 
       // drawing the donut
       this._drawDonut(ctx, node, 15, 5, 0.5, [errorPct, unknownPct, healthyPct]);
@@ -845,10 +869,10 @@ export default class CanvasDrawer {
       ctx.fillStyle = '#FF7383';
     }
 
-    ctx.fillRect(xPos - labelPadding, yPos - 8 - labelPadding, labelWidth + 3 * labelPadding, 8 + 2 * labelPadding);
+    ctx.fillRect(xPos - labelPadding, yPos - 6 - labelPadding, labelWidth + 3 * labelPadding, 8 + 3 * labelPadding);
 
     ctx.fillStyle = this.colors.background;
-    ctx.fillText(label, xPos, yPos);
+    ctx.fillText(label, xPos + labelWidth/2, yPos);
   }
 
   _drawDebugInformation() {
@@ -901,6 +925,17 @@ export default class CanvasDrawer {
       ctx.fillStyle = this.colors.background;
     }
     ctx.fill();
+
+    // Display CPU usage in the center of the donut
+    const metrics: IntGraphMetrics = node.data('metrics');
+    const cpuUsage = _.defaultTo(metrics.cpu_usage, 0); // Default to 0 if no data
+    const cpuUsageText = `${(cpuUsage * 100).toFixed(1)}%`; // Convert to percentage and format
+
+    ctx.font = '8px Arial'; // Set font size and style
+    ctx.fillStyle = 'white'; // Set text color
+    ctx.textAlign = 'center'; // Center align text horizontally
+    ctx.textBaseline = 'middle'; // Center align text vertically
+    ctx.fillText(cpuUsageText, cX, cY); // Draw the text at the center of the donut
   }
 
   _drawArc(

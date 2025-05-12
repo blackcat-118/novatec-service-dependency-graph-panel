@@ -2,6 +2,7 @@ import React from 'react';
 import { StandardEditorContext, StandardEditorProps } from '@grafana/data';
 import { PanelSettings, DataMapping } from '../../types';
 import { Switch } from '@grafana/ui';
+import { cpuUsage } from 'process';
 
 interface Props extends StandardEditorProps<boolean, PanelSettings> {
   item: any;
@@ -38,6 +39,7 @@ export class DummyDataSwitch extends React.PureComponent<Props, State> {
       sourceColumn: 'origin_service',
       targetColumn: 'target_service',
       interfaceColumn: 'interface',
+      cpuUsageColumn: '',
       responseTimeColumn: 'in_timesum',
       requestRateColumn: 'in_count',
       errorRateColumn: 'error_in',
