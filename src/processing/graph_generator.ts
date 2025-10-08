@@ -50,6 +50,8 @@ class GraphGenerator {
         type: nodeType,
         layer: 0,
         metrics,
+        node_ip: "",
+        pod_ip: "",
         namespace: [],
       },
     };
@@ -63,6 +65,19 @@ class GraphGenerator {
       node.data.parent = namespace[namespace.length - 1];
       this._updateMaxLayer(node.data.layer);
     }
+    // get first element where node_ip is defined.
+    const nodeIpElement = dataElements.find((el) => el.data.node_ip !== undefined);
+    if (nodeIpElement?.data.node_ip) {
+      const nodeIp = nodeIpElement.data.node_ip;
+      node.data.node_ip = nodeIp;
+    }
+    // get first element where pod_ip is defined.
+    const podIpElement = dataElements.find((el) => el.data.pod_ip !== undefined);
+    if (podIpElement?.data.pod_ip) {
+      const podIp = podIpElement.data.pod_ip;
+      node.data.pod_ip = podIp;
+    }
+
 
     const aggregationFunction = sumMetrics ? _.sum : _.mean;
 

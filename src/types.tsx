@@ -86,6 +86,8 @@ export interface GraphDataElement {
 
 export interface DataElement {
   pod?: string;
+  node_ip?: string;
+  pod_ip?: string;
   rate_in?: number;
   rate_out?: number;
   cpu_usage?: number;
@@ -117,6 +119,8 @@ export interface IntGraphNode {
 export interface IntGraphNodeData {
   id: string;
   type: EnGraphNodeType;
+  node_ip?: string;
+  pod_ip?: string;
   metrics?: IntGraphMetrics;
   external_type?: string;
   label?: string;
@@ -126,6 +130,7 @@ export interface IntGraphNodeData {
 }
 
 export interface IntGraphMetrics {
+  
   rate?: number;
   error_rate?: number;
   cpu_usage?: number;
@@ -178,6 +183,8 @@ export interface TableContent {
 }
 
 export interface IntSelectionStatistics {
+  nodeIP: string;
+  podIP: string;
   requests?: number;
   errors?: number;
   responseTime?: number;

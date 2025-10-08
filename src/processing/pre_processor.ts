@@ -272,6 +272,8 @@ class PreProcessor {
       const targetColumnField = _.find(fields, ['name', targetColumn]);
       const interfaceColumnField = _.find(fields, ['name', interfaceColumn]);
       const namespaceColumnField = _.find(fields, ['name', namespaceColumn]);
+      const nodeIPColumnField = _.find(fields, ['name', 'host_ip']);
+      const podIPColumnField = _.find(fields, ['name', 'pod_ip']);
 
       const errorRateColumnField = _.find(fields, ['name', errorRateColumn]);
       const errorRateOutgoingColumnField = _.find(fields, ['name', errorRateOutgoingColumn]);
@@ -291,6 +293,8 @@ class PreProcessor {
         row[sourceColumn] = sourceColumnField?.values.get(i);
         row[targetColumn] = targetColumnField?.values.get(i);
         row[interfaceColumn] = interfaceColumnField?.values.get(i);
+        row['node_ip'] = nodeIPColumnField?.values.get(i);
+        row['pod_ip'] = podIPColumnField?.values.get(i);
         row['namespace'] = namespaceColumnField?.values.get(i);
         row['error_rate_in'] = errorRateColumnField?.values.get(i);
         row['error_rate_out'] = errorRateOutgoingColumnField?.values.get(i);

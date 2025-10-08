@@ -354,6 +354,8 @@ export class ServiceDependencyGraph extends PureComponent<PanelState, PanelState
 
       const metrics: IntGraphMetrics = selection.nodes()[0].data('metrics');
 
+      const nodeIP = selection.nodes()[0].data('node_ip');
+      const podIP = selection.nodes()[0].data('pod_ip');
       const requestCount = _.defaultTo(metrics.rate, -1);
       const errorCount = _.defaultTo(metrics.error_rate, -1);
       const duration = _.defaultTo(metrics.response_time, -1);
@@ -375,6 +377,8 @@ export class ServiceDependencyGraph extends PureComponent<PanelState, PanelState
           this.selectionStatistics.thresholdViolation = duration > threshold;
         }
       }
+      this.selectionStatistics.nodeIP = nodeIP
+      this.selectionStatistics.podIP = podIP;
 
       for (let i = 0; i < edges.length; i++) {
         const actualEdge: EdgeSingular = edges[i];

@@ -39,6 +39,23 @@ export const Statistics: React.FC<StatisticsProps> = ({
       );
     }
 
+    const hostIP = 
+      <tr>
+        <td className="table--td--selection">Host IP</td>
+        <td className="table--td--selection">{"140.113.208.74"}</td>
+      </tr>;
+
+    const nodeIP =
+      <tr>
+        <td className="table--td--selection">Node IP</td>
+        <td className="table--td--selection">{selectionStatistics.nodeIP}</td>
+      </tr>;
+    const podIP =
+      <tr>
+        <td className="table--td--selection">Pod IP</td>
+        <td className="table--td--selection">{selectionStatistics.podIP}</td> 
+      </tr>;
+      
     const requests =
       selectionStatistics.requests >= 0 ? (
         <tr>
@@ -97,6 +114,16 @@ export const Statistics: React.FC<StatisticsProps> = ({
           {drilldownLink}
         </div>
 
+        <div className="secondHeader--selection">Host Information</div>
+        <table className="table--selection">
+          <tr className="table--selection--head">
+            <th>Name</th>
+            <th className="table--th--selectionMedium">Value</th>
+          </tr>
+          {hostIP}
+          {nodeIP}
+          {podIP}
+        </table>
         <div className="secondHeader--selection">Statistics</div>
         <table className="table--selection">
           <tr className="table--selection--head">
