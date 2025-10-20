@@ -83,6 +83,7 @@ class GraphGenerator {
 
     if (internalNode) {
       metrics.rate = _.sum(_.map(dataElements, (element) => element.data.rate_in));
+      metrics.bandwidth = _.sum(_.map(dataElements, (element) => element.data.bandwidth_in));
       metrics.error_rate = _.sum(_.map(dataElements, (element) => element.data.error_rate_in));
 
       const response_timings = _.map(dataElements, (element) => element.data.response_time_in).filter(isPresent);
@@ -91,6 +92,7 @@ class GraphGenerator {
       }
     } else {
       metrics.rate = _.sum(_.map(dataElements, (element) => element.data.rate_out));
+      metrics.bandwidth = _.sum(_.map(dataElements, (element) => element.data.bandwidth_out));
       metrics.error_rate = _.sum(_.map(dataElements, (element) => element.data.error_rate_out));
 
       const response_timings = _.map(dataElements, (element) => element.data.response_time_out).filter(isPresent);
@@ -109,10 +111,6 @@ class GraphGenerator {
     }
 
     // metrics which are same for internal and external nodes
-    metrics.bandwidth = _(dataElements)
-      .map((element) => element.data.bandwidth)
-      .filter()
-      .mean();
     metrics.cpu_usage = _(dataElements)
       .filter((element) => element.data.pod === nodeName) // Only include elements where 'pod' matches 'nodeName'
       .map((element) => element.data.cpu_usage)
@@ -254,8 +252,10 @@ class GraphGenerator {
         metrics.response_time = response_time_out;
       }
     }
-    if (!_.isUndefined(dataElement.data.bandwidth)) {
-      metrics.bandwidth = dataElement.data.bandwidth;
+    if (!_.isUndefined(dataElement.data.bandwidth_out)) {
+      metrics.bandwidth = dataElement.data.bandwidth_out;
+    } else if (!_.isUndefined(dataElement.data.bandwidth_in)) {
+      metrics.bandwidth = dataElement.data.bandwidth_in;
     }
 
     return edge;

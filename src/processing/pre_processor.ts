@@ -1,7 +1,31 @@
 import { DataFrame } from '@grafana/data';
-import _ from 'lodash';
+import _, { filter } from 'lodash';
 import { PanelController } from '../panel/PanelController';
 import { GraphDataElement, GraphDataType, CurrentData } from '../types';
+import { sourceMapsEnabled } from 'process';
+
+var upfN4IPIDMapping: { [key: string]: string 
+} = { 
+  '10.100.50.144': 'upf1', 
+  '10.100.50.145': 'upf2', 
+  '10.100.50.146': 'upf3', 
+  '10.100.50.147': 'upf4', 
+  '10.100.50.148': 'upf5', 
+  '10.100.50.149': 'upf6', 
+};
+
+// key is upf pod name(e.g 'upf-0')
+var upfNameInfoMapping: {
+  [key: string]: {
+    upf_id: string;
+    n4_ip: string;
+    session_count?: number;
+    cpu_usage?: number;
+    [extraKey: string]: any; // optional: allow extra fields
+  };
+} = {
+  // 'upf1': { upf_id:'upf1', n4_ip: '10.100.50.144', session_count: 0 },
+};
 
 class PreProcessor {
   controller: PanelController;
@@ -13,73 +37,23 @@ class PreProcessor {
   _transformObjects(data: any[]): GraphDataElement[] {
     const {
       aggregationType,
-      sourceColumn,
-      targetColumn,
       interfaceColumn,
-      extOrigin: externalSource,
-      extTarget: externalTarget,
       namespaceDelimiter,
     } = this.controller.getSettings(true).dataMapping;
 
-    const result = _.map(data, (dataObject) => {
-      var source = _.has(dataObject, sourceColumn) && dataObject[sourceColumn] !== '';
-      var target = _.has(dataObject, targetColumn) && dataObject[targetColumn] !== '';
-      const extSource = _.has(dataObject, externalSource) && dataObject[externalSource] !== '';
-      const extTarget = _.has(dataObject, externalTarget) && dataObject[externalTarget] !== '';
-
+    const result = _.flatMap(data, (dataObject) => {
       // preprocessing the source and target columns
       // to remove the namespace string from the source and target columns
       // and replace it with the namespaceDelimiter
 
-      if (dataObject[aggregationType] !== '') {
-        const aggValue = dataObject[aggregationType];
-        const aggResovled = aggValue.split('-');
-        if (aggResovled.length >= 3) {
-          dataObject[aggregationType] = aggResovled[aggResovled.length-3];
-        }
-      }
-      if (source) {
-        const sourceValue = dataObject[sourceColumn];
-        const sourceResolved = sourceValue.split('-');
-        if (sourceResolved.length >= 3) {
-          dataObject[sourceColumn] = sourceResolved[sourceResolved.length-3];
-        }
-      }
-      if (target) {
-        const targetValue = dataObject[targetColumn];
-        const targetResolved = targetValue.split('-');
-        if (targetResolved.length >= 3) {
-          dataObject[targetColumn] = targetResolved[targetResolved.length-3];
-        }
-      }
-      if (extSource) {
-        const sourceValue = dataObject[externalSource];
-        const sourceResolved = sourceValue.split('-');
-        if (sourceResolved.length >= 3) {
-          dataObject[externalSource] = sourceResolved[sourceResolved.length-3];
-        }
-      }
-      if (extTarget) {
-        const targetValue = dataObject[externalTarget];
-        const targetResolved = targetValue.split('-');
-        if (targetResolved.length >= 3) {
-          dataObject[externalTarget] = targetResolved[targetResolved.length-3];
-        }
-      }
-
-      let trueCount = [source, target, extSource, extTarget].filter((e) => e).length;
-
-      if (trueCount > 1) {
-        if (target && extTarget) {
-          target = false;
-        } else if (source && extSource) {
-          source = false;
-        } else {
-          console.error('source-target conflict for data element', dataObject);
-          return undefined;
-        }
-      }
-
+      // if (dataObject[aggregationType] !== '') {
+      //   const aggValue = dataObject[aggregationType];
+      //   const aggResovled = aggValue.split('-');
+      //   if (aggResovled.length >= 3) {
+      //     dataObject[aggregationType] = aggResovled[aggResovled.length-3];
+      //     source = dataObject[aggregationType];
+      //   }
+      // }
       // Don't use extSource and extTarget for 5G Digital Twin
       // because they are not used in the data mapping
 
@@ -96,75 +70,184 @@ class PreProcessor {
           result.namespace = namespaceResolved;
         }
       }
+      result.source = dataObject[aggregationType];
+      const sbiExclude: string[] = ['ue', 'upf1', 'upf2', 'upf3', 'upf4', 'upf5', 'upf6', 'ue', 'gnb', 'gnb1', 'gnb2', 'dbpython', 'mongodb-0'];
+      // Only consider container network receive 
+      result.type = GraphDataType.INTERNAL;
+      if (dataObject[interfaceColumn] !== "") {
+        if (dataObject[interfaceColumn] === "n2") {
+          if (result.source?.includes("gnb")) {
+            result.target = "amf";
 
-      if (trueCount === 0) {
-        result.target = dataObject[aggregationType];
-        result.type = GraphDataType.EXTERNAL_IN;
-      } else {
-        if (source || target) {
-          if (source) {
-            result.source = dataObject[sourceColumn];
-            result.target = dataObject[aggregationType];
-          } else {
-            result.source = dataObject[aggregationType];
-            result.target = dataObject[targetColumn];
+            // return 2 results, one for incoming, one for outgoing
+            return [
+              result,
+              {
+                ...result,
+                source: result.target,
+                target: result.source,
+                data: {
+                  ...dataObject,
+                  // clear out metrics and keep only incoming ones
+                  'bandwidth_out': undefined,
+                  'rate_out': undefined,
+                }
+                // type: GraphDataType.EXTERNAL_OUT
+              },
+            ];
+          } else if (result.source?.includes("amf")) {
+            return null; // skip this row, as it is handled in the gnb<-amf case
+            // result.type = GraphDataType.EXTERNAL_OUT
           }
+        } else if (dataObject[interfaceColumn] === "n3") {
+          if (result.source?.includes("upf")) {
 
-          if (result.source === result.target) {
-            result.type = GraphDataType.SELF;
+            // cannot know which gnb the traffic sent to, so set to all gnb...
+            // assume gnb1, gnb2 and gnb3 for now
+            return [
+              {
+                ...result,
+                target: "gnb"
+              },
+              {
+                ...result,
+                target: "gnb1"
+              },
+              {
+                ...result,
+                target: "gnb2"
+              }
+            ]
+          } else if (result.source?.includes("gnb")) {
+            // the same reason as above, cannot know which upf the traffic comes from
+            const tmp_result: any = [];
+            for (const [_, info] of Object.entries(upfNameInfoMapping)) {
+              tmp_result.push({
+                ...result,
+                target: info.upf_id,
+              });
+            }
+            return tmp_result;
           }
-        } else if (extSource) {
-          result.source = dataObject[externalSource];
-          result.target = dataObject[aggregationType];
-          result.type = GraphDataType.EXTERNAL_IN;
-        } else if (extTarget) {
-          result.source = dataObject[aggregationType];
-          result.target = dataObject[externalTarget];
-          result.type = GraphDataType.EXTERNAL_OUT;
-        }
-        
-        const sbiExclude: string[] = ['ue', 'upf', 'upf1', 'gnb', 'dbpython', 'mongodb-0'];
-        // Only consider container network receive 
-        result.type = GraphDataType.INTERNAL;
-        if (dataObject[interfaceColumn] !== "") {
-          if (dataObject[interfaceColumn] === "n2") {
-            if (result.source === "amf") {
-              result.target = "gnb";
-              // result.type = GraphDataType.EXTERNAL_IN
-            } else if (result.source === "gnb") {
-              result.target = "amf";
-              // result.type = GraphDataType.EXTERNAL_OUT
-            }
-          } else if (dataObject[interfaceColumn] === "n3") {
-            if (result.source === "upf" || result.source === "upf1") {
-              result.target = "gnb";
-            }  //else if (result.source === "gnb") {
-            //   result.target = "upf";
-            // }
-          } else if (dataObject[interfaceColumn] === "n4") {
-            if (result.target === "upf" || result.target === "upf1") {
-              result.source = "smf";
-            }
-          } else if (dataObject[interfaceColumn] === "n6") {
-            result.target = "DN"
-            result.type = GraphDataType.EXTERNAL_OUT
-          } else if (
-            typeof dataObject[interfaceColumn] === 'string' &&
-            dataObject[interfaceColumn].includes('uesimtun')
-          ) {
-            result.target = "gnb"
+        } else if (dataObject[interfaceColumn] === "n4") {
+          if (result.source?.includes("upf")) {
+            result.target = "smf";
+            return [
+              result,
+              {
+                ...result,
+                source: result.target,
+                target: result.source,
+                data: {
+                  ...dataObject,
+                  // clear out metrics and keep only incoming ones
+                  'bandwidth_out': undefined,
+                  'rate_out': undefined,
+                }
+              }
+            ]
+          } else if (result.source?.includes("smf")) {
+            return null; // skip this row, as it is handled in the upf<-smf case
+          }
+        } else if (dataObject[interfaceColumn] === "n6") {
+          result.target = "DN"
+          result.type = GraphDataType.EXTERNAL_OUT
+        } else if (
+          typeof dataObject[interfaceColumn] === 'string' &&
+          dataObject[interfaceColumn].includes('uesimtun')
+        ) {
+          if (result.source?.includes("gnb")) {
+            // result.target = "ue"
+            // return [
+            //   result,
+            //   {
+            //     ...result,
+            //     source: result.target,
+            //     target: result.source,
+            //     data: {
+            //       ...dataObject,
+            //       // clear out metrics and keep only incoming ones
+            //       'bandwidth_out': undefined,
+            //       'rate_out': undefined,
+            //     }
+            //   },
+            // ]
+            // result.type = GraphDataType.EXTERNAL_OUT
+          } else if (result.source?.includes("ue")) {
+            return [
+              {
+                ...result,
+                target: "gnb"
+              },
+              {
+                ...result,
+                source: "gnb",
+                target: result.source,
+                data: {
+                  ...dataObject,
+                  // clear out metrics and keep only incoming ones
+                  'bandwidth_out': undefined,
+                  'rate_out': undefined,
+                }
+              },
+              {
+                ...result,
+                target: "gnb1"
+              },
+              {
+                ...result,
+                source: "gnb1",
+                target: result.source,
+                data: {
+                  ...dataObject,
+                  // clear out metrics and keep only incoming ones
+                  'bandwidth_out': undefined,
+                  'rate_out': undefined,
+                }
+              },
+              {
+                ...result,
+                target: "gnb2"
+              },
+              {
+                ...result,
+                source: "gnb2",
+                target: result.source,
+                data: {
+                  ...dataObject,
+                  // clear out metrics and keep only incoming ones
+                  'bandwidth_out': undefined,
+                  'rate_out': undefined,
+                }
+              },
+            ]
+            // result.type = GraphDataType.EXTERNAL_OUT
+          }
+        } else {
+          if (result.source && !sbiExclude.includes(result.source)) {
+            result.target = "SBI"
+            return [
+              result,
+              {
+                ...result,
+                source: result.target,
+                target: result.source,
+                data: {
+                  ...dataObject,
+                  // clear out metrics and keep only incoming ones
+                  'bandwidth_out': undefined,
+                  'rate_out': undefined,
+                }
+              },
+            ]
             // result.type = GraphDataType.EXTERNAL_OUT
           } else {
-            if (result.source && !sbiExclude.includes(result.source)) {
-              result.target = "SBI"
-              // result.type = GraphDataType.EXTERNAL_OUT
-            } else if (result.target && !sbiExclude.includes(result.target)) {
-              result.source = "SBI"
-              // result.type = GraphDataType.EXTERNAL_OUT
-            }
+            return null;
+            // result.type = GraphDataType.EXTERNAL_OUT
           }
         }
       }
+
       return result;
     });
 
@@ -241,12 +324,8 @@ class PreProcessor {
 
     const {
       aggregationType,
-      sourceColumn,
-      targetColumn,
       interfaceColumn,
       namespaceColumn,
-      extOrigin,
-      extTarget,
       type,
       errorRateColumn,
       errorRateOutgoingColumn,
@@ -258,18 +337,43 @@ class PreProcessor {
       baselineRtUpper,
     } = this.controller.getSettings(true).dataMapping;
 
-
-
+    // filter out UPF info data
+    const filteredInputDataSets: any[] = []
+    // extract UPF info first
     for (const inputData of inputDataSets) {
+      const upfname = inputData.name; 
+      if (!upfname) {
+        filteredInputDataSets.push(inputData);
+        continue;
+      }
+
       const { fields } = inputData;
-      const externalSourceField = _.find(fields, ['name', extOrigin]);
-      const externalTargetField = _.find(fields, ['name', extTarget]);
+      const upfN4IPField = _.find(fields, ['name', 'n4_ip']);
+      const upfSessionCountField = _.find(fields, ['name', 'session_count'])
+
+      if (!upfNameInfoMapping[upfname]) {
+        upfNameInfoMapping[upfname] = {
+          upf_id: '',
+          n4_ip: '',
+          session_count: 0,
+        };
+      }
+
+      for (let i = 0; i < inputData.length; i++) {
+        if (upfN4IPField || upfSessionCountField) {
+          upfNameInfoMapping[upfname].upf_id = upfN4IPIDMapping[upfN4IPField?.values.get(i)];
+          upfNameInfoMapping[upfname].n4_ip = upfN4IPField?.values.get(i);
+          upfNameInfoMapping[upfname].session_count = upfSessionCountField?.values.get(i);
+        }
+      }
+    }
+
+    for (const inputData of filteredInputDataSets) {
+      const { fields } = inputData;
       const aggregationSuffixField = _.find(fields, ['name', aggregationType]);
 
       const typeField = _.find(fields, ['name', type]);
 
-      const sourceColumnField = _.find(fields, ['name', sourceColumn]);
-      const targetColumnField = _.find(fields, ['name', targetColumn]);
       const interfaceColumnField = _.find(fields, ['name', interfaceColumn]);
       const namespaceColumnField = _.find(fields, ['name', namespaceColumn]);
       const nodeIPColumnField = _.find(fields, ['name', 'host_ip']);
@@ -281,17 +385,46 @@ class PreProcessor {
       const responseTimeColumnField = _.find(fields, ['name', responseTimeColumn]);
       const responseTimeOutgoingColumnField = _.find(fields, ['name', responseTimeOutgoingColumn]);
       const requestRateColumnField = _.find(fields, ['name', requestRateColumn]);
-      const bandwidthColumnField = _.find(fields, ['name', 'Value #C']);
+      const bandwidthColumnField = _.find(fields, ['name', 'Value #bandwidth_in']);
       const requestRateOutgoingColumnField = _.find(fields, ['name', requestRateOutgoingColumn]);
+      const bandwidthOutgoingColumnField = _.find(fields, ['name', 'Value #bandwidth_out']);
       const responseTimeBaselineField = _.find(fields, ['name', baselineRtUpper]);
 
       for (let i = 0; i < inputData.length; i++) {
         const row: any = {};
-        row[extOrigin] = externalSourceField?.values.get(i);
-        row[extTarget] = externalTargetField?.values.get(i);
         row[aggregationType] = aggregationSuffixField?.values.get(i);
-        row[sourceColumn] = sourceColumnField?.values.get(i);
-        row[targetColumn] = targetColumnField?.values.get(i);
+        // skip rows with empty aggregation type(pod name)
+        if (!row[aggregationType] || row[aggregationType] === '') {
+          continue;
+        }
+
+        // skip rows that are not related to free5gc or ueransim
+        if (!row[aggregationType].includes('free5gc') && !row[aggregationType].includes('ueransim')) {
+          continue;
+        }
+
+        // normalize the aggregation type value
+        if (row[aggregationType].includes('upf')) {
+          // 'free5gc-premier-free5gc-upf-upf-0' -> 'upf-0'
+          row[aggregationType] = row[aggregationType]
+                                .split('-')
+                                .slice(-2)
+                                .join('-');
+          const upf_name: string = row[aggregationType];
+          row['n4_ip'] = upfNameInfoMapping[upf_name]?.n4_ip;
+          row['session_count'] = upfNameInfoMapping[upf_name]?.session_count;
+          // update aggregationType to upf id in smf configuration
+          row[aggregationType] = upfNameInfoMapping[upf_name]?.upf_id;
+
+        } else if (row[aggregationType].includes('ueransim')) {
+          // 'ueransim-premier-gnb-67847595df-vp2tc' -> 'gnb'
+          row[aggregationType] = row[aggregationType].split('-')[2];
+        } else if (row[aggregationType].includes('free5gc')) {
+          // 'free5gc-premier-free5gc-amf-amf-6bc4b64f86-vk6bk ' -> 'amf'
+          row[aggregationType] = row[aggregationType].split('-')[4];
+        }
+
+        row[aggregationType]
         row[interfaceColumn] = interfaceColumnField?.values.get(i);
         row['node_ip'] = nodeIPColumnField?.values.get(i);
         row['pod_ip'] = podIPColumnField?.values.get(i);
@@ -302,10 +435,12 @@ class PreProcessor {
         row['response_time_in'] = responseTimeColumnField?.values.get(i);
         row['response_time_out'] = responseTimeOutgoingColumnField?.values.get(i);
         row['rate_in'] = requestRateColumnField?.values.get(i);
-        row['bandwidth'] = bandwidthColumnField?.values.get(i);
         row['rate_out'] = requestRateOutgoingColumnField?.values.get(i);
+        row['bandwidth_in'] = bandwidthColumnField?.values.get(i);
+        row['bandwidth_out'] = bandwidthOutgoingColumnField?.values.get(i);
         row['threshold'] = responseTimeBaselineField?.values.get(i);
         row['type'] = typeField?.values.get(i);
+
         // The above code returns { "": undefined } for values that do not exist.
         // These values are filtered by this line.
         Object.keys(row).forEach((key) => (row[key] === undefined || row[key] === '') && delete row[key]);
@@ -313,57 +448,6 @@ class PreProcessor {
       }
     }
     return rows;
-  }
-
-  _resolveData(row: any) {
-    let source = _.has(row, 'sourceColumn') && row['sourceColumn'] !== '';
-    let target = _.has(row, 'targetColumn') && row['targetColumn'] !== '';
-    const extSource = _.has(row, 'extOrigin') && row['extOrigin'] !== '';
-    const extTarget = _.has(row, 'extTarget') && row['extTarget'] !== '';
-    let trueCount = [source, target, extSource, extTarget].filter((e) => e).length;
-
-    if (trueCount > 1) {
-      if (target && extTarget) {
-        target = false;
-      } else if (source && extSource) {
-        source = false;
-      } else {
-        console.error('source-target conflict for data element', row);
-        return;
-      }
-    }
-    var resolvedObject: any = {
-      data: row.data,
-    };
-    if (trueCount === 0) {
-      resolvedObject.target = row['aggregationSuffix'];
-      resolvedObject.type = GraphDataType.EXTERNAL_IN;
-    } else {
-      if (source || target) {
-        if (source) {
-          resolvedObject.source = row['sourceColumn'];
-          resolvedObject.target = row['aggregationSuffix'];
-          resolvedObject.type = GraphDataType.INTERNAL;
-        } else {
-          resolvedObject.source = row['aggregationSuffix'];
-          resolvedObject.target = row['targetColumn'];
-          resolvedObject.type = GraphDataType.INTERNAL;
-        }
-
-        if (resolvedObject.source === resolvedObject.target) {
-          resolvedObject.type = GraphDataType.SELF;
-        }
-      } else if (extSource) {
-        resolvedObject.source = row['externalSource'];
-        resolvedObject.target = row['aggregationSuffix'];
-        resolvedObject.type = GraphDataType.EXTERNAL_IN;
-      } else if (extTarget) {
-        resolvedObject.source = row['aggregationSuffix'];
-        resolvedObject.target = row['externalTarget'];
-        resolvedObject.type = GraphDataType.EXTERNAL_OUT;
-      }
-    }
-    return resolvedObject;
   }
 
   _mergeObjects(rows: any[]) {
@@ -375,17 +459,32 @@ class PreProcessor {
     return mergedObjects;
   }
 
+  _extractUPFInfo(inputData: any[]) {
+    const upfInfo: any = {};
+
+    for (const dataObject of inputData) {
+      const upfName = dataObject['upf_name'];
+      if (upfName && !_.has(upfInfo, upfName)) {
+        upfInfo[upfName] = {
+          pod_ip: dataObject['pod_ip'],
+          node_ip: dataObject['node_ip'],
+        };
+      }
+    }
+  }
+
   processData(inputData: DataFrame[]): CurrentData {
     const rows = this._dataToRows(inputData);
 
     const flattenData = this._mergeObjects(rows);
-
+    
     const graphElements = this._transformObjects(flattenData);
-
+    
     const columnNames = this._extractColumnNames(graphElements);
-
+    
     const mergedData = this._mergeGraphData(graphElements);
-
+    console.log('Merged Data:', mergedData);
+    
     return {
       graph: mergedData,
       raw: inputData,

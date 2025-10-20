@@ -64,6 +64,14 @@ export const Statistics: React.FC<StatisticsProps> = ({
         </tr>
       ) : null;
 
+    const bandwidth =
+      selectionStatistics.bandwidth >= 0 ? (
+        <tr>
+          <td className="table--td--selection">Bandwidth</td>
+          <td className="table--td--selection">{selectionStatistics.bandwidth}</td>
+        </tr>
+      ) : null;
+
     const errors =
       selectionStatistics.errors >= 0 ? (
         <tr>
@@ -131,6 +139,7 @@ export const Statistics: React.FC<StatisticsProps> = ({
             <th className="table--th--selectionMedium">Value</th>
           </tr>
           {requests}
+          {bandwidth}
           {errors}
           {errorRate}
           {avgResponseTime}

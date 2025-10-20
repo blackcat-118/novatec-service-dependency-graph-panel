@@ -13,6 +13,7 @@ export const NodeStatistics = (receiving: TableContent[]) => {
                 <th>Name</th>
                 <th className="table--th--selectionSmall">Time</th>
                 <th className="table--th--selectionSmall">Requests</th>
+                <th className="table--th--selectionSmall">Bandwidth</th>
                 <th className="table--th--selectionSmall">Error Rate</th>
               </tr>
               {receiving.map((node: TableContent, index: number) => (
@@ -22,6 +23,7 @@ export const NodeStatistics = (receiving: TableContent[]) => {
                   </td>
                   <td className="table--td--selection">{node.responseTime}</td>
                   <td className="table--td--selection">{node.rate}</td>
+                  <td className="table--td--selection">{node.bandwidth}</td>
                   <td className="table--td--selection">{node.error}</td>
                 </tr>
               ))}

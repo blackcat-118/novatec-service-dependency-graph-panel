@@ -295,7 +295,6 @@ export default class CanvasDrawer {
     ctx.strokeStyle = '#FFFFFF'; // Red color for the connecting lines
     ctx.lineWidth = 2;
 
-    const nfNum = 10;
     const sbiLineX = 50; // X-coordinate of the SBI line (adjust as needed)
     const sbiLineXLen = 100*7;
   
@@ -310,14 +309,57 @@ export default class CanvasDrawer {
     ctx.fillStyle = '#FFFFFF'; // White color for the label
     ctx.fillText('Service-Based Interface (SBI)', sbiLineX+sbiLineXLen+10, sbiLineY + 5); // Position the label near the line
 
+    const processedPairs = new Set<string>();
     // Draw lines connecting source nodes to the SBI line and add labels
     for (const edge of edges) {
+      const src = edge.source().id().toLowerCase();
+      const tgt = edge.target().id().toLowerCase();
+
+      if (src != 'sbi' && tgt != 'sbi') {
+        continue; // Skip edges that do not involve the "SBI" node
+      }
+
+      const pairKey = [src, tgt].sort().join('-');
+      if (processedPairs.has(pairKey)) {
+        continue; // already processed this pair in the opposite direction
+      }
+      const reverseEdge = edges.find(
+        (e) => e.source().id() === tgt && e.target().id() === src
+      );
+
       const sourcePoint = edge.sourceEndpoint();
-      const target = edge.target();
-      const targetId = target.id().toLowerCase();
+      const targetPoint = edge.targetEndpoint();
+      if (src !== 'sbi') {
+        targetPoint.x = sourcePoint.x;
+        targetPoint.y = sbiLineY;
+      } else if (tgt !== 'sbi') {
+        sourcePoint.x = targetPoint.x;
+        sourcePoint.y = sbiLineY;
+      }
 
-      if (targetId === 'sbi') {
+      this._drawEdgeLine(ctx, edge, sourcePoint, targetPoint);
+      this._drawEdgeParticles(ctx, edge, sourcePoint, targetPoint, now);
+      if (reverseEdge) {
+        this._drawEdgeParticles(ctx, reverseEdge, targetPoint, sourcePoint, now);
+      }
 
+      processedPairs.add(pairKey);
+
+      if (showConnectionStats && cy.zoom() > 1) {
+        // Add edge label (e.g., "X Req.")
+        const metrics = edge.data('metrics');
+        const reverseMetrics = reverseEdge?.data('metrics');
+        const requestCount = parseInt(_.defaultTo(metrics?.rate, 0).toString(), 10); // Default to 0 if no data and ensure it's an integer
+        const reverseRequestCount = parseInt(_.defaultTo(reverseMetrics?.rate, 0).toString(), 10);
+        const label = `${requestCount} Req. / ${reverseRequestCount} Req.`;
+
+        ctx.font = '6px Arial'; // Set font size and style
+        ctx.fillStyle = '#FFFFFF'; // White color for the label
+        ctx.fillText(label, (sourcePoint.x + targetPoint.x) / 2, (sourcePoint.y + targetPoint.y) / 2 - 5); // Position the label
+      }
+
+      if (src === 'sbi' || tgt === 'sbi') {
+        const sourcePoint = edge.sourceEndpoint();
         const targetPoint = {
           x: sourcePoint.x,   // Align the connection vertically to the SBI 
           y: sbiLineY,
@@ -325,39 +367,27 @@ export default class CanvasDrawer {
         this._drawEdgeLine(ctx, edge, sourcePoint, targetPoint);
         this._drawEdgeParticles(ctx, edge, sourcePoint, targetPoint, now);
 
+        
+      } else if (sourceId === 'sbi') {
+        // Handle edges where the source is "SBI"
+        const targetPoint = edge.targetEndpoint();
+        const sourcePoint = {
+          x: targetPoint.x + 5,   // Align the connection vertically to the SBI
+          y: sbiLineY,
+        };
+        this._drawEdgeLine(ctx, edge, sourcePoint, targetPoint);
+        this._drawEdgeParticles(ctx, edge, sourcePoint, targetPoint, now);
         if (showConnectionStats && cy.zoom() > 1) {
           // Add edge label (e.g., "X Req.")
-          const metrics = edge.data('metrics');
+          const metrics = edge.data('metrics');   
           const requestCount = parseInt(_.defaultTo(metrics?.rate, 0).toString(), 10); // Default to 0 if no data and ensure it's an integer
           const label = `${requestCount} Req.`;
-      
+          
           ctx.font = '6px Arial'; // Set font size and style
           ctx.fillStyle = '#FFFFFF'; // White color for the label
           ctx.fillText(label, (sourcePoint.x + targetPoint.x) / 2, (sourcePoint.y + targetPoint.y) / 2 - 5); // Position the label
         }
       }
-    
-  
-  
-      // Skip the "SBI" node itself
-      // if (targetId === 'sbi') {
-      //   const targetX = sourcePoint.x; // Align the connection vertically to the SBI line
-  
-      //   // Draw the red edge
-      //   ctx.beginPath();
-      //   ctx.moveTo(sourcePoint.x, sourcePoint.y);
-      //   ctx.lineTo(targetX, sbiLineY);
-      //   ctx.stroke();
-  
-      //   // Add edge label (e.g., "X Req.")
-      //   const metrics = edge.data('metrics');
-      //   const requestCount = parseInt(_.defaultTo(metrics?.rate, 0).toString(), 10); // Default to 0 if no data and ensure it's an integer
-      //   const label = `${requestCount} Req.`;
-  
-      //   ctx.font = '10px Arial'; // Set font size and style
-      //   ctx.fillStyle = '#FFFFFF'; // White color for the label
-      //   ctx.fillText(label, (sourcePoint.x + targetX) / 2, (sourcePoint.y + sbiLineY) / 2 - 5); // Position the label
-      // }
     }
   
     ctx.restore();
@@ -366,19 +396,36 @@ export default class CanvasDrawer {
   _drawEdges(ctx: CanvasRenderingContext2D, edges: cytoscape.EdgeSingular[], now: number) {
     const cy = this.cytoscape;
 
+    const processedPairs = new Set<string>();
+
     for (const edge of edges) {
-      const sourcePoint = edge.sourceEndpoint();
-      const targetPoint = edge.targetEndpoint();
-      // console.log('draw edge : ', sourcePoint, targetPoint);
+      const src = edge.source().id().toLowerCase();
+      const tgt = edge.target().id().toLowerCase();
 
-
-      // Ignore edges where the source or target is the "SBI" node
-      if (edge.source().id().toLowerCase() === 'sbi' || edge.target().id().toLowerCase() === 'sbi') {
+       // Ignore edges where the source or target is the "SBI" node
+      if (src === 'sbi' || tgt === 'sbi') {
         continue;
       }
 
+      const pairKey = [src, tgt].sort().join('-');
+      if (processedPairs.has(pairKey)) {
+        // already processed this pair in the opposite direction
+        continue;
+      }
+      const reverseEdge = edges.find(
+        (e) => e.source().id() === tgt && e.target().id() === src
+      );
+
+      const sourcePoint = edge.sourceEndpoint();
+      const targetPoint = edge.targetEndpoint();
+
       this._drawEdgeLine(ctx, edge, sourcePoint, targetPoint);
       this._drawEdgeParticles(ctx, edge, sourcePoint, targetPoint, now);
+      if (reverseEdge) {
+        this._drawEdgeParticles(ctx, reverseEdge, targetPoint, sourcePoint, now);
+      }
+
+      processedPairs.add(pairKey);
     }
 
     const { showConnectionStats } = this.controller.getSettings(true);

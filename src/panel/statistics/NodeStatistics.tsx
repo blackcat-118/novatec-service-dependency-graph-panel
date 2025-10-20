@@ -14,6 +14,7 @@ const tableHeaders: IntTableHeader[] = [
   { text: 'Name', dataField: 'name', sort: true, isKey: true },
   { text: 'Time', dataField: 'time', sort: true, ignoreLiteral: ' ms' },
   { text: 'Requests', dataField: 'requests', sort: true, ignoreLiteral: '' },
+  { text: 'Bandwidth', dataField: 'bandwidth', sort: true, ignoreLiteral: '' },
   { text: 'Error Rate', dataField: 'error_rate', sort: true, ignoreLiteral: '%' },
 ];
 
@@ -27,6 +28,7 @@ function getStatisticsTable(noDataText: string, nodeList: TableContent[]) {
             name: node.name,
             time: node.responseTime,
             requests: node.rate,
+            bandwidth: node.bandwidth,
             error_rate: roundPercentageToDecimal(2, node.error),
           };
         })}

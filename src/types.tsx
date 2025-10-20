@@ -17,8 +17,6 @@ export interface PanelSettings {
 
 export interface DataMapping {
   aggregationType: string;
-  sourceColumn: string;
-  targetColumn: string;
   interfaceColumn: string;
   namespaceColumn: string;
   namespaceDelimiter: string;
@@ -31,8 +29,6 @@ export interface DataMapping {
   requestRateOutgoingColumn: string;
   errorRateOutgoingColumn: string;
 
-  extOrigin: string;
-  extTarget: string;
   type: string;
   showDummyData: boolean;
 
@@ -91,7 +87,8 @@ export interface DataElement {
   rate_in?: number;
   rate_out?: number;
   cpu_usage?: number;
-  bandwidth?: number;
+  bandwidth_in?: number;
+  bandwidth_out?: number;
   response_time_in?: number;
   response_time_out?: number;
   error_rate_in?: number;
@@ -179,6 +176,7 @@ export interface TableContent {
   name: string;
   responseTime: string;
   rate: string;
+  bandwidth: string;
   error: string;
 }
 
@@ -186,6 +184,7 @@ export interface IntSelectionStatistics {
   nodeIP: string;
   podIP: string;
   requests?: number;
+  bandwidth?: number;
   errors?: number;
   responseTime?: number;
   threshold?: number;

@@ -5,8 +5,6 @@ export const DefaultSettings: PanelSettings = {
 
   dataMapping: {
     aggregationType: 'service',
-    sourceColumn: 'origin_service',
-    targetColumn: 'target_service',
     interfaceColumn: 'interface',
     namespaceColumn: 'namespace',
     namespaceDelimiter: '.',
@@ -19,8 +17,6 @@ export const DefaultSettings: PanelSettings = {
     requestRateOutgoingColumn: 'request-rate-out',
     errorRateOutgoingColumn: 'error-rate-out',
 
-    extOrigin: 'external_origin',
-    extTarget: 'external_target',
     type: 'type',
 
     baselineRtUpper: 'threshold',
